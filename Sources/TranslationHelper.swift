@@ -128,21 +128,17 @@ private func parsePatterns(_ patterns: [String]) -> [[JSONSubscriptType]] {
 private func filterJsonByPatterns(
     _ json: JSON, 
     patterns: [[JSONSubscriptType]], 
-    removeEmptyStrings: Bool, 
-    spinner: ((Bool) -> Void)? = nil
+    removeEmptyStrings: Bool
 ) -> JSON {
     var filteredJson = JSON()
     json.traverse { path, value in
-        spinner?(false)
         if path.matches(patterns) {
             if removeEmptyStrings, value.type == .string, value.stringValue.isEmpty {
                 return
             }
             filteredJson[path.toKeyString()] = value
         }
-        sleep(1)
     }
-    spinner?(true)
     return filteredJson
 }
 
