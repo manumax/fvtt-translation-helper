@@ -7,7 +7,7 @@ struct TranslationHelper: ParsableCommand {
     static let configuration = CommandConfiguration(
         abstract:
             "A utility designed to assist in translating Foundry VTT packages using the Babele module.",
-        subcommands: [Extract.self, Merge.self, Remove.self]
+        subcommands: [Extract.self, Merge.self, Remove.self, DetectInvariantKeys.self]
     )
 }
 
@@ -99,6 +99,63 @@ extension TranslationHelper {
     }
 }
 
+// MARK: -
+
+extension TranslationHelper {
+    struct DetectInvariantKeys: ParsableCommand {
+        static let configuration =
+            CommandConfiguration(
+                abstract:
+                    "Identifies keys with values that remain constant, making them candidates for removal."
+            )
+
+        @Option(name: [.short, .customLong("input")])
+        var inputFile: String
+
+        mutating func run() throws {
+            let inputJson = try openJsonFile(at: inputFile)
+            var invariants = [DetectInvariantKey: DetectInvariantValue]()
+            inputJson.traverse { path, value in
+                let (_, last) = path.splitLast()
+                if let last = last, case .key(let key) = last.jsonKey {
+                    let invariantKey = DetectInvariantKey(key: key, path: path)
+                    if let invariantValue = invariants[invariantKey] {
+                        switch invariantValue {
+                        case .once(let json), .multiple(let json):
+                            if json == value {
+                                invariants[invariantKey] = .multiple(json)
+                            } else {
+                                invariants[invariantKey] = .different
+                            }
+                        case .different:
+                            break
+                        }
+                    } else {
+                        invariants[invariantKey] = .once(value)
+                    }
+                }
+            }
+            invariants
+                .filter { key, value in
+                    switch value {
+                    case .once(_), .different: return false
+                    case .multiple(_): return true
+                    }
+                }
+                .compactMap { (key, value) -> (String, JSON)? in
+                    if case .multiple(let json) = value {
+                        return (key.path.toKeyString(), json)
+                    }
+                    return nil
+                }
+                .sorted { $0.0 < $1.0 }
+                .forEach { path, value in
+                    print("\(path): \(value.prettyPrint())")
+                }
+        }
+    }
+}
+
 // MARK: - Operations
 
 private func openJsonFile(at path: String) throws -> JSON {
@@ -126,8 +183,8 @@ private func parsePatterns(_ patterns: [String]) -> [[JSONSubscriptType]] {
 }
 
 private func filterJsonByPatterns(
-    _ json: JSON, 
-    patterns: [[JSONSubscriptType]], 
+    _ json: JSON,
+    patterns: [[JSONSubscriptType]],
     removeEmptyStrings: Bool
 ) -> JSON {
     var filteredJson = JSON()
@@ -231,6 +288,21 @@ extension JSON {
             ? dictionaryObject?.removeValue(forKey: key)
             : self[subpath].dictionaryObject?.removeValue(forKey: key)) as? JSON
     }
+
+    func prettyPrint() -> String {
+        switch type {
+            case .number, .string, .bool: 
+                return stringValue
+            case .array:
+                return count == 0 ? "[]" : "[...]"
+            case .dictionary:
+                return count == 0 ? "{}" : "{...}"
+            case .null:
+                return "null"
+            case .unknown:
+                return "unknown"
+        }
+    }
 }
 
 extension Array where Element == JSONSubscriptType {
@@ -297,4 +369,30 @@ extension Array where Element == JSONSubscriptType {
             return (Array(self[0..<lastIndex]), self[lastIndex])
         }
     }
+}
+
+// MARK: - DetectInvariantKeys
+
+struct DetectInvariantKey {
+    let key: String
+    let path: [JSONSubscriptType]
+}
+
+extension DetectInvariantKey: Equatable {
+    static func == (lhs: DetectInvariantKey, rhs: DetectInvariantKey) -> Bool {
+        return lhs.key == rhs.key && lhs.path.count == rhs.path.count
+    }
+}
+
+extension DetectInvariantKey: Hashable {
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(key)
+        hasher.combine(path.count)
+    }
+}
+
+enum DetectInvariantValue {
+    case once(JSON)
+    case multiple(JSON)
+    case different
 }
