@@ -16,7 +16,12 @@ let package = Package(
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .product(name: "SwiftyJSON", package: "SwiftyJSON"),
-            ]
+            ],
+            path: "Sources/Main"
+        ),
+        .testTarget(
+            name: "fvtt-transaltion-helper-tests",
+            path: "Sources/Tests"
         )
     ]
 )
