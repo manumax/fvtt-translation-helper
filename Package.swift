@@ -12,7 +12,7 @@ let package = Package(
     ],
     targets: [
         .executableTarget(
-            name: "fvtt-translation-helper",
+            name: "FvttTranslationHelper",
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .product(name: "SwiftyJSON", package: "SwiftyJSON"),
@@ -20,7 +20,8 @@ let package = Package(
             path: "Sources/Main"
         ),
         .testTarget(
-            name: "fvtt-transaltion-helper-tests",
+            name: "FvttTranslationHelperTests",
+            dependencies: ["FvttTranslationHelper"],
             path: "Sources/Tests"
         )
     ]
