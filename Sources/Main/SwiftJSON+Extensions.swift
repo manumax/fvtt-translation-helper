@@ -3,6 +3,7 @@ import SwiftyJSON
 // MARK: - SwiftJSON Extensions
 
 typealias NodeCallback = ([JSONSubscriptType], JSON) -> Void
+typealias JsonPath = [JSONSubscriptType]
 
 extension JSON {
 

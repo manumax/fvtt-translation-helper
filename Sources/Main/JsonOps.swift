@@ -1,6 +1,8 @@
 import SwiftyJSON
 
-func parsePatterns(_ patterns: [String]) -> [[JSONSubscriptType]] {
+typealias Patterns = [JsonPath]
+
+func parsePatterns(_ patterns: [String]) -> Patterns {
   patterns.map(
     [JSONSubscriptType].init(fromKeyString:)
   )
@@ -10,7 +12,7 @@ func parsePatterns(_ patterns: [String]) -> [[JSONSubscriptType]] {
 
 func filterJsonByPatterns(
   _ json: JSON,
-  patterns: [[JSONSubscriptType]],
+  patterns: Patterns,
   removeEmptyStrings: Bool
 ) -> JSON {
   var filteredJson = JSON()
@@ -44,7 +46,7 @@ func mergePathIndexedJson(
 
 // MARK: - removeKeysFromJsonByPatterns
 
-func removeKeysFromJsonByPatterns(_ json: JSON, patterns: [[JSONSubscriptType]]) -> JSON {
+func removeKeysFromJsonByPatterns(_ json: JSON, patterns: Patterns) -> JSON {
   // Making a copy of the JSON object to avoid mutating the original
   var resultingJson = JSON(json.rawValue)
   json.traverse { path, value in
@@ -61,11 +63,11 @@ func removeKeysFromJsonByPatterns(_ json: JSON, patterns: [[JSONSubscriptType]])
 // MARK: - detectInvariantKeysInJson
 
 func detectInvariantKeysInJson(_ json: JSON) -> [(String, JSON)] {
-  var candidates = [DetectInvariantKey: DetectInvariantValue]()
+  var candidates = [InvariantKey: InvariantValue]()
   json.traverse { path, value in
     let (_, last) = path.splitLast()
     if case .key(let key) = last?.jsonKey {
-      let candidateKey = DetectInvariantKey(key: key, path: path)
+      let candidateKey = InvariantKey(key: key, path: path)
       if let candidateValue = candidates[candidateKey] {
         switch candidateValue {
         case .once(let json), .multiple(let json):
@@ -99,25 +101,25 @@ func detectInvariantKeysInJson(_ json: JSON) -> [(String, JSON)] {
     .sorted { $0.0 < $1.0 }
 }
 
-struct DetectInvariantKey {
+struct InvariantKey {
   let key: String
-  let path: [JSONSubscriptType]
+  let path: JsonPath
 }
 
-extension DetectInvariantKey: Equatable {
-  static func == (lhs: DetectInvariantKey, rhs: DetectInvariantKey) -> Bool {
+extension InvariantKey: Equatable {
+  static func == (lhs: InvariantKey, rhs: InvariantKey) -> Bool {
     return lhs.key == rhs.key && lhs.path.count == rhs.path.count
   }
 }
 
-extension DetectInvariantKey: Hashable {
+extension InvariantKey: Hashable {
   func hash(into hasher: inout Hasher) {
     hasher.combine(key)
     hasher.combine(path.count)
   }
 }
 
-enum DetectInvariantValue {
+enum InvariantValue {
   case once(JSON)
   case multiple(JSON)
   case different
