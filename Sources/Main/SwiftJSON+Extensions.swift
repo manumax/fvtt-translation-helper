@@ -126,3 +126,16 @@ extension Array where Element == JSONSubscriptType {
     }
   }
 }
+
+extension JSONKey: @retroactive Equatable {
+  public static func == (lhs: JSONKey, rhs: JSONKey) -> Bool {
+    switch (lhs, rhs) {
+    case (.index(let lhs), .index(let rhs)):
+      return lhs == rhs
+    case (.key(let lhs), .key(let rhs)):
+      return lhs == rhs
+    default:
+      return false
+    }
+  }
+}
